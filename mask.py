@@ -68,7 +68,9 @@ class MaskMaker:
         clip_loss = torch.tensor(0)
         augmented_input = x_in.add(1).div(2)
         clip_in = self.clip_normalize(augmented_input)
-        image_embeds = self.clip.encode_image(clip_in).float()
+        # 使用的CLIP模型在这里只能接受224*224的输入的，所以在这里必须要对其大小进行转换
+        print(clip_in.shape)
+        image_embeds = self.clip.encode_image(clip_in).float()  # 这一行有问题呗就是
         dists = d_clip_loss(image_embeds, text_embed)
 
         # We want to sum over the averages

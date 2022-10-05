@@ -4,3 +4,4 @@ ForTest
 *.png
 .idea
 __pycache__
+serverupdate.py
