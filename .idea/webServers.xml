@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="WebServers">
+    <option name="servers">
+      <webServer id="3830fce5-6559-4603-8346-3b3a2fd7f261" name="zhuhaoze">
+        <fileTransfer rootFolder="/home/zhuhaoze/image_segmentation" accessType="SFTP" host="10.134.2.18" port="22" sshConfigId="652e5cfb-284d-4171-90cc-8e88313349b4" sshConfig="zhuhaoze@10.134.2.18">
+          <advancedOptions>
+            <advancedOptions dataProtectionLevel="Private" passiveMode="true" shareSSLContext="true" />
+          </advancedOptions>
+        </fileTransfer>
+      </webServer>
+    </option>
+  </component>
+</project>
