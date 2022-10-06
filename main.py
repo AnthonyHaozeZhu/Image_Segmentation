@@ -67,6 +67,8 @@ if __name__ == '__main__':
     a = Image.open("img.png").convert("RGB")
     a = torchvision.transforms.functional.to_tensor(a).type(torch.float16).to(args.device)
     result = test.make_mask_by_language(a, "a Cheetah")
+    print(result.shape)
+    print(result)
 
     # TODO: 完成整个的测试过程
 

@@ -72,7 +72,6 @@ class MaskMaker:
         # 使用的CLIP模型在这里只能接受224*224的输入的，所以在这里必须要对其大小进行转换
         resize = transforms.Resize([self.clip_size, self.clip_size])
         clip_in = resize(clip_in)
-        print(clip_in.shape)
         image_embeds = self.clip.encode_image(clip_in).float()
         dists = d_clip_loss(image_embeds, text_embed)
 
@@ -99,7 +98,9 @@ class MaskMaker:
 
                 fac = self.diffusion.sqrt_one_minus_alphas_cumprod[t[0].item()]
                 x_in = out["pred_xstart"] * fac + x * (1 - fac)  # 获得的生成的中间图像，可以理解为我们需要的mask
-                mask = x_in  # .repeat(1, 3, 1, 1) > 0.5
+                # TODO：如果生成的东西是三通道的，那我们将所有通道中的值加权平均后可以得到一个一通道的
+                mask = torch.mean(input=x_in, dim=1).unsqueeze(1)
+                mask = mask.repeat(1, 3, 1, 1) > 0.5
                 item = mask * image
 
                 loss = torch.tensor(0)
@@ -154,9 +155,9 @@ class MaskMaker:
             # TODO: 看看生成的是个什么样子的东西，暂时还有一定的报错，这一部分还没有使用，但是上面已经进行了控制之类的操作，还需要具体研究一下代码的流程步骤
             for j, sample in enumerate(samples):
                 for index in range(self.args.batch_size):
-                    # pred_mask = sample["pred_xstart"][index]
-                    print("hah")
-            return # pred_mask
+                    pred_mask = sample["pred_xstart"][index]
+                    # print("hah")
+            return pred_mask
 
 
 
