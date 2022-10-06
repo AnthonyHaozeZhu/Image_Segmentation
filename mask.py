@@ -22,6 +22,7 @@ class MaskMaker:
         self.clip_normalize = transforms.Normalize(
             mean=[0.48145466, 0.4578275, 0.40821073], std=[0.26862954, 0.26130258, 0.27577711]
         )
+        # TODO：这一部分参数还需要进行细致研究一下
         self.model_config = model_and_diffusion_defaults()
         self.model_config.update(
             {
@@ -69,8 +70,10 @@ class MaskMaker:
         augmented_input = x_in.add(1).div(2)
         clip_in = self.clip_normalize(augmented_input)
         # 使用的CLIP模型在这里只能接受224*224的输入的，所以在这里必须要对其大小进行转换
+        resize = transforms.Resize([self.clip_size, self.clip_size])
+        clip_in = resize(clip_in)
         print(clip_in.shape)
-        image_embeds = self.clip.encode_image(clip_in).float()  # 这一行有问题呗就是
+        image_embeds = self.clip.encode_image(clip_in).float()
         dists = d_clip_loss(image_embeds, text_embed)
 
         # We want to sum over the averages
@@ -122,6 +125,7 @@ class MaskMaker:
                 model=self.model,
                 shape=(
                     self.args.batch_size,
+                    # TODO：这一部分写的是3通道的，如果改成1通道将会报错，需要进行修改
                     3,  # 生成的mask只需要一个通道即可
                     self.model_config["image_size"],
                     self.model_config["image_size"]
@@ -136,6 +140,7 @@ class MaskMaker:
                 },
                 cond_fn=grad_controller,  # 控制生成条件的方法
                 progress=True,  # 显示一个tqdm的进度条随时查看进度
+                # TODO：这些参数还没有弄明白具体意思，还需要继续代码阅读进行更改
                 # skip_timesteps=self.args.skip_timesteps,
                 # init_image=self.init_image,  # 需要进行操作的图片
                 # postprocess_fn=None if self.args.local_clip_guided_diffusion else postprocess_fn,
@@ -146,7 +151,7 @@ class MaskMaker:
 
             # 以下直接复制尝试以下这个东西能不能跑
 
-            # TODO: 看看生成的是个什么样子的东西
+            # TODO: 看看生成的是个什么样子的东西，暂时还有一定的报错，这一部分还没有使用，但是上面已经进行了控制之类的操作，还需要具体研究一下代码的流程步骤
             for j, sample in enumerate(samples):
                 for index in range(self.args.batch_size):
                     # pred_mask = sample["pred_xstart"][index]
