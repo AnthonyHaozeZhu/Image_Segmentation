@@ -9,15 +9,28 @@
 import argparse
 
 import torchvision
-from PIL import Image
 from mask import *
+from PhraseCutDataset.utils.refvg_loader import RefVGLoader
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument("--device", type=str, default='cuda')
-    parser.add_argument("--data", type=str, default="", help="Path of the dataset")
-    parser.add_argument("--batch_size", type=int, default=32)
+    parser.add_argument(
+        "--device",
+        type=str,
+        default='cuda'
+    )
+    parser.add_argument(
+        "--data",
+        type=str,
+        default="",
+        help="Path of the dataset"
+    )
+    parser.add_argument(
+        "--batch_size",
+        type=int,
+        default=32
+    )
     parser.add_argument(
         "--model_output_size",
         type=int,
@@ -47,7 +60,8 @@ if __name__ == '__main__':
         "--iterations_num",
         type=int,
         help="The number of iterations",
-        default=8)
+        default=8
+    )
     parser.add_argument(
         "--ddim",
         help="Indicator for using DDIM instead of DDPM",
@@ -67,8 +81,7 @@ if __name__ == '__main__':
     a = Image.open("img.png").convert("RGB")
     a = torchvision.transforms.functional.to_tensor(a).type(torch.float16).to(args.device)
     result = test.make_mask_by_language(a, "a Cheetah")
-    print(result.shape)
-    print(result)
 
+    refvg_loader = RefVGLoader(split='val')
     # TODO: 完成整个的测试过程
 

@@ -30,6 +30,7 @@ class MaskMaker:
                 "class_cond": self.args.model_output_size == 512,
                 "diffusion_steps": 1000,
                 "rescale_timesteps": True,
+                # 用来跳过一些步骤的，我目前把这一部分删掉看看是什么样的结果，删除之后我们的模型需要迭代1000次才可以获得一个结果，和我们预料的一样，这样的操作有点慢，后面再仔细阅读论文看看怎么办
                 "timestep_respacing": self.args.timestep_respacing,
                 "image_size": self.args.model_output_size,
                 "learn_sigma": True,
@@ -66,6 +67,7 @@ class MaskMaker:
         return unscaled_timestep
 
     def clip_loss(self, x_in, text_embed):
+        # TODO：现在这里text_embedding不能处理batch的东西，这里还需要进行一定的处理
         clip_loss = torch.tensor(0)
         augmented_input = x_in.add(1).div(2)
         clip_in = self.clip_normalize(augmented_input)
@@ -98,7 +100,7 @@ class MaskMaker:
 
                 fac = self.diffusion.sqrt_one_minus_alphas_cumprod[t[0].item()]
                 x_in = out["pred_xstart"] * fac + x * (1 - fac)  # 获得的生成的中间图像，可以理解为我们需要的mask
-                # TODO：如果生成的东西是三通道的，那我们将所有通道中的值加权平均后可以得到一个一通道的
+                # 如果生成的东西是三通道的，那我们将所有通道中的值加权平均后可以得到一个一通道的
                 mask = torch.mean(input=x_in, dim=1).unsqueeze(1)
                 mask = mask.repeat(1, 3, 1, 1) > 0.5
                 item = mask * image
@@ -116,48 +118,57 @@ class MaskMaker:
 
                 return -torch.autograd.grad(loss, x)[0]
 
-        for iteration_number in range(self.args.iterations_num):
-            sample_func = (
-                self.diffusion.ddim_sample_loop_progressive
-                if self.args.ddim
-                else self.diffusion.p_sample_loop_progressive
-            )
-            samples = sample_func(
-                model=self.model,
-                shape=(
-                    self.args.batch_size,
-                    # TODO：这一部分写的是3通道的，如果改成1通道将会报错，需要进行修改
-                    3,  # 生成的mask只需要一个通道即可
-                    self.model_config["image_size"],
-                    self.model_config["image_size"]
-                ),
-                clip_denoised=False,
-                model_kwargs={}  # 传给模型额外的关键字儿
-                if self.args.model_output_size == 256
-                else {
-                    "y": torch.zeros([self.args.batch_size],
-                                     device=self.args.device,
-                                     dtype=torch.long)
-                },
-                cond_fn=grad_controller,  # 控制生成条件的方法
-                progress=True,  # 显示一个tqdm的进度条随时查看进度
-                # TODO：这些参数还没有弄明白具体意思，还需要继续代码阅读进行更改
-                # skip_timesteps=self.args.skip_timesteps,
-                # init_image=self.init_image,  # 需要进行操作的图片
-                # postprocess_fn=None if self.args.local_clip_guided_diffusion else postprocess_fn,
-                # randomize_class=True,
-            )
-            intermediate_samples = [[] for _ in range(self.args.batch_size)]
-            total_steps = self.diffusion.num_timesteps - self.args.skip_timesteps - 1
+        # 先不进行多次迭代，正常操作
+        # for iteration_number in range(self.args.iterations_num):
+        # print("hahah:", iteration_number)
+        sample_func = (
+            self.diffusion.ddim_sample_loop_progressive
+            if self.args.ddim
+            else self.diffusion.p_sample_loop_progressive
+        )
+        samples = sample_func(
+            model=self.model,
+            shape=(
+                self.args.batch_size,
+                # TODO：这一部分写的是3通道的，如果改成1通道将会报错，需要进行修改
+                3,  # 生成的mask只需要一个通道即可
+                self.model_config["image_size"],
+                self.model_config["image_size"]
+            ),  # 输入内容的形状
+            clip_denoised=False,
+            model_kwargs={}  # 传给模型额外的关键字儿
+            if self.args.model_output_size == 256
+            else {
+                "y": torch.zeros([self.args.batch_size],
+                                 device=self.args.device,
+                                 dtype=torch.long)
+            },
+            cond_fn=grad_controller,  # 控制生成条件的方法
+            progress=True,  # 显示一个tqdm的进度条随时查看进度
+            # TODO：这些参数还没有弄明白具体意思，还需要继续代码阅读进行更改
+            # skip_timesteps=self.args.skip_timesteps,
+            # init_image=self.init_image,  # 需要进行操作的图片
+            # postprocess_fn=None if self.args.local_clip_guided_diffusion else postprocess_fn,
+            # randomize_class=True,
+        )
 
-            # 以下直接复制尝试以下这个东西能不能跑
-
-            # TODO: 看看生成的是个什么样子的东西，暂时还有一定的报错，这一部分还没有使用，但是上面已经进行了控制之类的操作，还需要具体研究一下代码的流程步骤
+        # TODO: 看看生成的是个什么样子的东西，暂时还有一定的报错，这一部分还没有使用，但是上面已经进行了控制之类的操作，还需要具体研究一下代码的流程步骤
+        total_mask = []
+        for index in range(self.args.batch_size):
+            # TODO：generator类型元素，不能直接读取最后一个，必须进行迭代
             for j, sample in enumerate(samples):
-                for index in range(self.args.batch_size):
-                    pred_mask = sample["pred_xstart"][index]
-                    # print("hah")
-            return pred_mask
+                if j == 99:
+                    print(self.diffusion.num_timesteps)
+                    print(self.args.skip_timesteps)
+                    print(j)
+                    soft_mask = sample["pred_xstart"][index].add(1).div(2).clamp(0, 1)  # 这些操作是为了解决生成的图像中有数值小于0的问题
+                    soft_mask = np.array(soft_mask.to("cpu")).transpose((1, 2, 0)) * 255
+                    # print(soft_mask))
+                    mask_pil = Image.fromarray(np.uint8(soft_mask))
+                    mask_pil.save("./test_mask.png")
+                    total_mask.append(sample["pred_xstart"][index])
+
+        return total_mask
 
 
 
