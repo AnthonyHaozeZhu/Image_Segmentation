@@ -11,6 +11,8 @@ import torch
 from torchvision import transforms
 from guided_diffusion.guided_diffusion.script_util import create_model_and_diffusion, model_and_diffusion_defaults
 from utils import *
+import matplotlib.pyplot as plt
+import seaborn as sns
 
 
 class MaskMaker:
@@ -31,7 +33,7 @@ class MaskMaker:
                 "diffusion_steps": 1000,
                 "rescale_timesteps": True,
                 # 用来跳过一些步骤的，我目前把这一部分删掉看看是什么样的结果，删除之后我们的模型需要迭代1000次才可以获得一个结果，和我们预料的一样，这样的操作有点慢，后面再仔细阅读论文看看怎么办
-                "timestep_respacing": self.args.timestep_respacing,
+                # "timestep_respacing": self.args.timestep_respacing,
                 "image_size": self.args.model_output_size,
                 "learn_sigma": True,
                 "noise_schedule": "linear",
@@ -157,14 +159,20 @@ class MaskMaker:
         for index in range(self.args.batch_size):
             # TODO：generator类型元素，不能直接读取最后一个，必须进行迭代
             for j, sample in enumerate(samples):
-                if j == 99:
+                if j == 999:
                     print(self.diffusion.num_timesteps)
                     print(self.args.skip_timesteps)
                     print(j)
                     soft_mask = sample["pred_xstart"][index].add(1).div(2).clamp(0, 1)  # 这些操作是为了解决生成的图像中有数值小于0的问题
+                    heat_map = torch.mean(input=soft_mask, dim=0)
+                    heat_map = np.array(heat_map.to("cpu"))
                     soft_mask = np.array(soft_mask.to("cpu")).transpose((1, 2, 0)) * 255
-                    # print(soft_mask))
+                    print(soft_mask)
                     mask_pil = Image.fromarray(np.uint8(soft_mask))
+                    sns.heatmap(heat_map)
+                    plt.xticks(rotation=90)  # 将字体进行旋转
+                    plt.yticks(rotation=360)
+                    plt.savefig("./test_heatmap.png")
                     mask_pil.save("./test_mask.png")
                     total_mask.append(sample["pred_xstart"][index])
 
